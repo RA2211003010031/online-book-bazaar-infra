@@ -1,57 +1,74 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = var.aws_region
+}
+
 # VPC
 resource "aws_vpc" "main" {
-  cidr_block           = var.vpc_cidr
+  cidr_block           = "10.0.0.0/16"
   enable_dns_hostnames = true
-  enable_dns_support   = true
-  tags = { Name = "book-bazaar-vpc" }
+  tags = {
+    Name = "book-bazaar-vpc"
+  }
+}
+
+# Subnet
+resource "aws_subnet" "public" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.1.0/24"
+  map_public_ip_on_launch = true
+  availability_zone       = "${var.aws_region}a"
+  tags = {
+    Name = "book-bazaar-subnet"
+  }
 }
 
 # Internet Gateway
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
-  tags = { Name = "book-bazaar-igw" }
+  tags = {
+    Name = "book-bazaar-igw"
+  }
 }
 
-# Public Subnet
-resource "aws_subnet" "public" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = var.public_subnet_cidr
-  availability_zone       = var.az
-  map_public_ip_on_launch = true
-  tags = { Name = "book-bazaar-public-subnet" }
-}
-
-# Route Table + Internet route
-resource "aws_route_table" "public_rt" {
+# Route Table
+resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
   route {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.igw.id
   }
-  tags = { Name = "book-bazaar-public-rt" }
+  tags = {
+    Name = "book-bazaar-rt"
+  }
 }
 
 resource "aws_route_table_association" "public_assoc" {
   subnet_id      = aws_subnet.public.id
-  route_table_id = aws_route_table.public_rt.id
+  route_table_id = aws_route_table.public.id
 }
 
-# Security Group (SSH + HTTP)
-resource "aws_security_group" "web_sg" {
-  name        = "book-bazaar-sg"
-  description = "Allow SSH and HTTP"
-  vpc_id      = aws_vpc.main.id
+# Security Group
+resource "aws_security_group" "sg" {
+  vpc_id = aws_vpc.main.id
+  name   = "book-bazaar-sg"
 
   ingress {
-    description = "SSH"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # For demo; later restrict to your IPs.
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
-    description = "HTTP"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -65,50 +82,31 @@ resource "aws_security_group" "web_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { Name = "book-bazaar-sg" }
-}
-
-# Auto-find the latest Ubuntu 22.04 LTS AMI in your region
-data "aws_ami" "ubuntu" {
-  most_recent = true
-  owners      = ["099720109477"] # Canonical
-
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+  tags = {
+    Name = "book-bazaar-sg"
   }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-}
-
-# Optional: install Nginx so you can see a page in the browser
-locals {
-  user_data = <<-EOF
-    #!/bin/bash
-    apt-get update -y
-    apt-get install -y nginx
-    echo "<h1>Online Book Bazaar - Instance $(hostname)</h1>" > /var/www/html/index.nginx-debian.html
-    systemctl enable nginx
-    systemctl restart nginx
-  EOF
 }
 
 # 3 EC2 Instances
-resource "aws_instance" "web" {
-  count                       = var.instance_count
-  ami                         = data.aws_ami.ubuntu.id
-  instance_type               = var.instance_type
-  subnet_id                   = aws_subnet.public.id
-  vpc_security_group_ids      = [aws_security_group.web_sg.id]
-  key_name                    = var.key_name
-  associate_public_ip_address = true
-  user_data                   = local.user_data
+resource "aws_instance" "app" {
+  count         = 3
+  ami           = "ami-0f58b397bc5c1f2e8" # Ubuntu 22.04 LTS (Mumbai region)
+  instance_type = "t2.micro"
+  subnet_id     = aws_subnet.public.id
+  vpc_security_group_ids = [aws_security_group.sg.id]
+  key_name      = var.key_name
 
   tags = {
-    Name = "book-bazaar-${count.index + 1}"
-    Role = "demo"
+    Name = "book-bazaar-instance-${count.index + 1}"
   }
+}
+
+# Variables
+variable "aws_region" {
+  default = "ap-south-1"
+}
+
+variable "key_name" {
+  description = "Name of your AWS key pair (without .pem extension)"
+  default     = "team-key-mumbai"
 }
