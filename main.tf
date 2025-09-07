@@ -5,7 +5,7 @@ resource "aws_vpc" "main" {
   tags = { Name = "book-bazaar-vpc" }
 }
 
-# Subnet
+# Public Subnet
 resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.0.1.0/24"
@@ -14,18 +14,20 @@ resource "aws_subnet" "public" {
   tags = { Name = "book-bazaar-subnet" }
 }
 
-# Internet Gateway + Route Table
+# Internet Gateway
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
   tags   = { Name = "book-bazaar-igw" }
 }
 
+# Route Table
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
   route {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.igw.id
   }
+  tags = { Name = "book-bazaar-rt" }
 }
 
 resource "aws_route_table_association" "assoc" {
@@ -33,7 +35,7 @@ resource "aws_route_table_association" "assoc" {
   route_table_id = aws_route_table.public.id
 }
 
-# Security Group
+# Security Group (allow SSH + HTTP)
 resource "aws_security_group" "sg" {
   vpc_id = aws_vpc.main.id
   name   = "book-bazaar-sg"
@@ -44,12 +46,14 @@ resource "aws_security_group" "sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
   ingress {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -58,14 +62,16 @@ resource "aws_security_group" "sg" {
   }
 }
 
-# EC2 Instances (3)
+# EC2 Instances
 resource "aws_instance" "app" {
-  count         = 3
+  count         = var.instance_count
   ami           = "ami-0f58b397bc5c1f2e8" # Ubuntu 22.04 in ap-south-1
-  instance_type = "t2.micro"
+  instance_type = var.instance_type
   subnet_id     = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.sg.id]
   key_name      = var.key_name
 
-  tags = { Name = "book-bazaar-instance-${count.index + 1}" }
+  tags = {
+    Name = "book-bazaar-instance-${count.index + 1}"
+  }
 }
