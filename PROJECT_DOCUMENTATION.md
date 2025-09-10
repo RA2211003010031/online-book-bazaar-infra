@@ -152,10 +152,18 @@ resource "aws_security_group" "sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+  
+  ingress {
+    from_port   = 8000
+    to_port     = 8000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
 ```
 - **SSH Access (Port 22)**: For team member remote access
 - **HTTP Access (Port 80)**: For web application testing
+- **Development Server (Port 8000)**: For Python/Django development servers
 - **Outbound**: All traffic allowed (for software installation)
 
 #### **5. EC2 Instances**
