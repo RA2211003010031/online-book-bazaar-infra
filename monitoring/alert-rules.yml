@@ -1,0 +1,75 @@
+# Prometheus Alert Rules for Online Book Bazaar
+# These rules define when to send alerts
+
+groups:
+  - name: "bookbazaar-alerts"
+    rules:
+      # Server Down Alert
+      - alert: ServerDown
+        expr: up{job="node-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Server {{ $labels.instance }} is down"
+          description: "Server {{ $labels.instance }} has been down for more than 1 minute"
+
+      # High CPU Usage Alert
+      - alert: HighCPUUsage
+        expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is above 80% for more than 5 minutes on {{ $labels.instance }}"
+
+      # High Memory Usage Alert
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemFree_bytes - node_memory_Buffers_bytes - node_memory_Cached_bytes) / node_memory_MemTotal_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is above 85% for more than 5 minutes on {{ $labels.instance }}"
+
+      # Low Disk Space Alert
+      - alert: LowDiskSpace
+        expr: (node_filesystem_size_bytes{fstype!="tmpfs"} - node_filesystem_free_bytes{fstype!="tmpfs"}) / node_filesystem_size_bytes{fstype!="tmpfs"} * 100 > 90
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Disk usage is above 90% on {{ $labels.instance }} {{ $labels.mountpoint }}"
+
+      # Application Down Alert
+      - alert: ApplicationDown
+        expr: up{job="web-applications"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Application is down on {{ $labels.instance }}"
+          description: "Web application has been down for more than 2 minutes on {{ $labels.instance }}"
+
+      # High Response Time Alert
+      - alert: HighResponseTime
+        expr: probe_duration_seconds{job="web-applications"} > 5
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High response time on {{ $labels.instance }}"
+          description: "Application response time is above 5 seconds on {{ $labels.instance }}"
+
+      # Jenkins Down Alert (if monitoring Jenkins)
+      - alert: JenkinsDown
+        expr: up{job="jenkins"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Jenkins is down"
+          description: "Jenkins service has been down for more than 2 minutes"

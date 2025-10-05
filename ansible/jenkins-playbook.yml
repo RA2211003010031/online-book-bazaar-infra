@@ -1,0 +1,91 @@
+---
+# Jenkins Installation and Configuration Playbook
+# This playbook installs Jenkins on the designated server
+
+- name: Install and Configure Jenkins
+  hosts: jenkins_server
+  become: yes
+  gather_facts: yes
+  
+  vars:
+    jenkins_admin_user: "admin"
+    jenkins_admin_password: "admin123"
+    
+  tasks:
+    - name: Install Java (required for Jenkins)
+      apt:
+        name: openjdk-11-jdk
+        state: present
+        update_cache: yes
+      
+    - name: Add Jenkins GPG key
+      apt_key:
+        url: https://pkg.jenkins.io/debian-stable/jenkins.io.key
+        state: present
+      
+    - name: Add Jenkins repository
+      apt_repository:
+        repo: "deb https://pkg.jenkins.io/debian-stable binary/"
+        state: present
+      
+    - name: Install Jenkins
+      apt:
+        name: jenkins
+        state: present
+        update_cache: yes
+      
+    - name: Start and enable Jenkins service
+      systemd:
+        name: jenkins
+        state: started
+        enabled: yes
+      
+    - name: Wait for Jenkins to start
+      wait_for:
+        port: 8080
+        timeout: 300
+      
+    - name: Get Jenkins initial admin password
+      slurp:
+        src: /var/lib/jenkins/secrets/initialAdminPassword
+      register: jenkins_admin_password_file
+      
+    - name: Display Jenkins initial password
+      debug:
+        msg: "Jenkins initial admin password: {{ jenkins_admin_password_file.content | b64decode }}"
+      
+    - name: Add jenkins user to docker group
+      user:
+        name: jenkins
+        groups: docker
+        append: yes
+      
+    - name: Install Ansible for Jenkins
+      pip:
+        name: ansible
+        state: present
+      
+    - name: Create Jenkins plugins directory
+      file:
+        path: /var/lib/jenkins/plugins
+        state: directory
+        owner: jenkins
+        group: jenkins
+        mode: '0755'
+      
+    - name: Restart Jenkins to apply changes
+      systemd:
+        name: jenkins
+        state: restarted
+      
+    - name: Wait for Jenkins to restart
+      wait_for:
+        port: 8080
+        timeout: 300
+      
+    - name: Display Jenkins access information
+      debug:
+        msg: 
+          - "Jenkins is now accessible at: http://{{ ansible_host }}:8080"
+          - "Initial admin password: {{ jenkins_admin_password_file.content | b64decode }}"
+          - "Please complete the setup wizard in the web interface"

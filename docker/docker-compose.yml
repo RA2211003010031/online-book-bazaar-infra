@@ -1,0 +1,58 @@
+# Docker Compose file for Online Book Bazaar
+# This file defines multiple services that work together
+
+version: '3.8'
+
+services:
+  # Main web application
+  web:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"  # Maps port 3000 from container to host
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs  # Mount logs directory
+    depends_on:
+      - database  # Start database before web app
+
+  # Database service (if your website uses MySQL)
+  database:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: bookstore123
+      MYSQL_DATABASE: bookstore_db
+      MYSQL_USER: bookstore_user
+      MYSQL_PASSWORD: bookstore_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql  # Persistent storage for database
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql  # Initialize database
+    restart: unless-stopped
+
+  # Redis for caching (optional)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  # Nginx as reverse proxy (optional)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - web
+    restart: unless-stopped
+
+# Named volumes for persistent data
+volumes:
+  db_data:

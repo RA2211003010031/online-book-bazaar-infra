@@ -1,0 +1,107 @@
+---
+# Application Deployment Playbook
+# This playbook deploys the Online Book Bazaar application
+
+- name: Deploy Online Book Bazaar Application
+  hosts: web_servers
+  become: yes
+  gather_facts: yes
+  
+  vars:
+    app_name: "online-book-bazaar"
+    app_directory: "/opt/bookbazaar"
+    app_user: "ubuntu"
+    git_repo: "https://github.com/YOUR-USERNAME/YOUR-WEBSITE-REPO.git"  # Replace with your repo
+    app_port: 3000
+    
+  tasks:
+    - name: Ensure application directory exists
+      file:
+        path: "{{ app_directory }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0755'
+    
+    - name: Stop existing containers
+      docker_container:
+        name: "{{ app_name }}"
+        state: absent
+      ignore_errors: yes
+      
+    - name: Remove old Docker image
+      docker_image:
+        name: "{{ app_name }}"
+        state: absent
+        force_absent: yes
+      ignore_errors: yes
+      
+    - name: Clone/Update application repository
+      git:
+        repo: "{{ git_repo }}"
+        dest: "{{ app_directory }}"
+        version: main
+        force: yes
+      become_user: "{{ app_user }}"
+      
+    - name: Copy Docker files to application directory
+      copy:
+        src: "{{ item }}"
+        dest: "{{ app_directory }}/{{ item | basename }}"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0644'
+      with_fileglob:
+        - "../docker/*"
+      
+    - name: Build Docker image
+      docker_image:
+        name: "{{ app_name }}"
+        source: build
+        build:
+          path: "{{ app_directory }}"
+          dockerfile: "Dockerfile"
+        state: present
+        force_source: yes
+      become_user: "{{ app_user }}"
+      
+    - name: Run new container
+      docker_container:
+        name: "{{ app_name }}"
+        image: "{{ app_name }}"
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "{{ app_port }}:{{ app_port }}"
+        env:
+          NODE_ENV: "production"
+          PORT: "{{ app_port }}"
+        volumes:
+          - "{{ app_directory }}/logs:/app/logs"
+      become_user: "{{ app_user }}"
+      
+    - name: Wait for application to start
+      wait_for:
+        port: "{{ app_port }}"
+        timeout: 60
+      
+    - name: Test application health
+      uri:
+        url: "http://localhost:{{ app_port }}"
+        method: GET
+        status_code: 200
+      register: app_health
+      ignore_errors: yes
+      
+    - name: Display deployment status
+      debug:
+        msg: 
+          - "Application deployed successfully!"
+          - "URL: http://{{ ansible_host }}:{{ app_port }}"
+          - "Container name: {{ app_name }}"
+      when: app_health is succeeded
+      
+    - name: Display deployment failure
+      debug:
+        msg: "Application deployment failed - check container logs"
+      when: app_health is failed
