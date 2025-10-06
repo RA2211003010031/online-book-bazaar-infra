@@ -85,6 +85,14 @@ resource "aws_security_group" "sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # Node Exporter (for Prometheus monitoring)
+  ingress {
+    from_port   = 9100
+    to_port     = 9100
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]  # Only allow from within VPC for security
+  }
+
   # Additional common ports (HTTPS, alternative HTTP)
   ingress {
     from_port   = 443
