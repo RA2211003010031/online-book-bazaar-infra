@@ -116,16 +116,22 @@ resource "aws_security_group" "sg" {
   }
 }
 
-# EC2 Instances
+# EC2 Instances with different sizes based on purpose
 resource "aws_instance" "app" {
   count         = var.instance_count
   ami           = "ami-0f58b397bc5c1f2e8" # Ubuntu 22.04 in ap-south-1
-  instance_type = var.instance_type
+  
+  # Instance 1: App Server (t3.small - 2GB RAM)
+  # Instance 2: Jenkins Server (t3.medium - 4GB RAM for CI/CD)  
+  # Instance 3: Monitoring Server (t3.small - 2GB RAM)
+  instance_type = count.index == 1 ? "t3.medium" : "t3.small"
+  
   subnet_id     = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.sg.id]
   key_name      = var.key_name
 
   tags = {
-    Name = "book-bazaar-instance-${count.index + 1}"
+    Name = count.index == 0 ? "book-bazaar-app-server" : count.index == 1 ? "book-bazaar-jenkins-server" : "book-bazaar-monitoring-server"
+    Purpose = count.index == 0 ? "application" : count.index == 1 ? "cicd" : "monitoring"
   }
 }

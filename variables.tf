@@ -19,5 +19,5 @@ variable "instance_count" {
 variable "instance_type" {
   description = "EC2 instance type"
   type        = string
-  default     = "t2.micro"
+  default     = "t3.small"  # 2 vCPU, 2GB RAM - better for DevOps workloads
 }
