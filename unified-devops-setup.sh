@@ -44,7 +44,7 @@ if [ $# -eq 3 ]; then
     log "Using provided instance IPs: $INSTANCE1_IP, $INSTANCE2_IP, $INSTANCE3_IP"
 else
     log "Getting instance IPs from Terraform..."
-    INSTANCE_IPS=$(terraform output -json instance_public_ips | jq -r '.value[]')
+    INSTANCE_IPS=$(terraform output -json instance_public_ips | jq -r '.[]')
     if [ -z "$INSTANCE_IPS" ]; then
         error "Could not get instance IPs from Terraform. Please provide them as arguments."
         exit 1
