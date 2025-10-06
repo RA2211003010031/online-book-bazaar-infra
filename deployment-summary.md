@@ -20,7 +20,7 @@ All services are successfully deployed and accessible!
 - **Prometheus**: http://3.111.215.37:9090
   - Metrics collection and monitoring
 - **Grafana**: http://3.111.215.37:3000
-  - **Login**: admin/admin
+  - **Login**: admin / admin123
   - Dashboards and visualization
 
 ## 🏗️ Infrastructure
@@ -85,8 +85,7 @@ ssh -i team-key-mumbai.pem ubuntu@3.111.215.37
    - Configure CI/CD pipeline for the Book Bazaar app
 
 2. **Grafana Setup**:
-   - Login with admin/admin
-   - Change default password
+   - Login with admin/admin123
    - Import Prometheus datasource (http://localhost:9090)
    - Create custom dashboards
 
