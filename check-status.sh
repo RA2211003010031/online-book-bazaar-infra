@@ -3,10 +3,10 @@
 # Quick status check for Online Book Bazaar DevOps setup
 # Usage: ./check-status.sh
 
-# Instance IPs from Terraform
-INSTANCE1_IP="13.201.70.160"
-INSTANCE2_IP="13.232.108.169"
-INSTANCE3_IP="3.111.215.37"
+# Instance IPs from Terraform (updated)
+INSTANCE1_IP="43.205.253.129"   # App server
+INSTANCE2_IP="13.232.244.171"   # Jenkins server  
+INSTANCE3_IP="13.232.74.85"     # Monitoring server
 
 # Ports
 APP_PORT=8000
