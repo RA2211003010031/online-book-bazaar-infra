@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Node Exporter Systemd Service File
+[Unit]
+Description=Node Exporter for Prometheus
+Documentation=https://prometheus.io/docs/guides/node-exporter/
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=node_exporter
+Group=node_exporter
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStart=/usr/local/bin/node_exporter \
+    --path.procfs=/proc \
+    --path.sysfs=/sys \
+    --collector.filesystem.mount-points-exclude="^/(dev|proc|sys|var/lib/docker/.+)($|/)" \
+    --collector.filesystem.fs-types-exclude="^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs)$" \
+    --web.listen-address=0.0.0.0:9100
+
+SyslogIdentifier=node_exporter
+Restart=always
+RestartSec=1
+StartLimitInterval=0
+
+[Install]
+WantedBy=multi-user.target

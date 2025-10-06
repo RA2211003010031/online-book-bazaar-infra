@@ -1,0 +1,270 @@
+---
+# Ansible Playbook for DevOps Infrastructure Setup
+# This playbook sets up Jenkins, Prometheus, Grafana, and Docker on EC2 instances
+
+- name: Setup DevOps Infrastructure
+  hosts: all_servers
+  become: yes
+  gather_facts: yes
+  
+  vars:
+    # Common variables
+    docker_packages:
+      - docker.io
+      - docker-compose
+    
+    # Jenkins variables
+    jenkins_port: 8080
+    jenkins_home: /var/lib/jenkins
+    
+    # Prometheus variables
+    prometheus_port: 9090
+    prometheus_version: "2.45.0"
+    
+    # Grafana variables
+    grafana_port: 3000
+    
+    # Node Exporter variables
+    node_exporter_port: 9100
+    node_exporter_version: "1.6.0"
+
+  tasks:
+    - name: Update system packages
+      apt:
+        update_cache: yes
+        upgrade: dist
+        cache_valid_time: 86400
+
+    - name: Install common packages
+      apt:
+        name:
+          - curl
+          - wget
+          - unzip
+          - git
+          - htop
+          - vim
+          - jq
+        state: present
+
+    - name: Install Docker
+      apt:
+        name: "{{ docker_packages }}"
+        state: present
+
+    - name: Start and enable Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add ubuntu user to docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+
+# Jenkins Server Configuration
+- name: Setup Jenkins Server
+  hosts: jenkins_servers
+  become: yes
+  
+  tasks:
+    - name: Install Java 11
+      apt:
+        name: openjdk-11-jdk
+        state: present
+
+    - name: Add Jenkins GPG key
+      apt_key:
+        url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+        state: present
+
+    - name: Add Jenkins repository
+      apt_repository:
+        repo: "deb https://pkg.jenkins.io/debian-stable binary/"
+        state: present
+
+    - name: Install Jenkins
+      apt:
+        name: jenkins
+        state: present
+        update_cache: yes
+
+    - name: Start and enable Jenkins
+      systemd:
+        name: jenkins
+        state: started
+        enabled: yes
+
+    - name: Wait for Jenkins to start
+      wait_for:
+        port: "{{ jenkins_port }}"
+        delay: 30
+
+    - name: Get Jenkins initial admin password
+      command: cat /var/lib/jenkins/secrets/initialAdminPassword
+      register: jenkins_password
+      changed_when: false
+
+    - name: Display Jenkins initial password
+      debug:
+        msg: "Jenkins initial admin password: {{ jenkins_password.stdout }}"
+
+# Monitoring Server Configuration
+- name: Setup Monitoring Server (Prometheus & Grafana)
+  hosts: monitoring_servers
+  become: yes
+  
+  tasks:
+    # Prometheus Setup
+    - name: Create prometheus user
+      user:
+        name: prometheus
+        system: yes
+        shell: /bin/false
+        home: /etc/prometheus
+
+    - name: Create prometheus directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: prometheus
+        group: prometheus
+        mode: '0755'
+      loop:
+        - /etc/prometheus
+        - /var/lib/prometheus
+
+    - name: Download Prometheus
+      get_url:
+        url: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+        dest: /tmp/prometheus.tar.gz
+
+    - name: Extract Prometheus
+      unarchive:
+        src: /tmp/prometheus.tar.gz
+        dest: /tmp
+        remote_src: yes
+
+    - name: Copy Prometheus binaries
+      copy:
+        src: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }}"
+        dest: "/usr/local/bin/{{ item }}"
+        owner: prometheus
+        group: prometheus
+        mode: '0755'
+        remote_src: yes
+      loop:
+        - prometheus
+        - promtool
+
+    - name: Copy Prometheus config
+      template:
+        src: prometheus.yml.j2
+        dest: /etc/prometheus/prometheus.yml
+        owner: prometheus
+        group: prometheus
+        mode: '0644'
+
+    - name: Create Prometheus systemd service
+      template:
+        src: prometheus.service.j2
+        dest: /etc/systemd/system/prometheus.service
+        mode: '0644'
+
+    - name: Start and enable Prometheus
+      systemd:
+        name: prometheus
+        state: started
+        enabled: yes
+        daemon_reload: yes
+
+    # Grafana Setup
+    - name: Add Grafana GPG key
+      apt_key:
+        url: https://apt.grafana.com/gpg.key
+        state: present
+
+    - name: Add Grafana repository
+      apt_repository:
+        repo: "deb https://apt.grafana.com stable main"
+        state: present
+
+    - name: Install Grafana
+      apt:
+        name: grafana
+        state: present
+        update_cache: yes
+
+    - name: Start and enable Grafana
+      systemd:
+        name: grafana-server
+        state: started
+        enabled: yes
+
+# App Server Configuration
+- name: Setup Application Server
+  hosts: app_servers
+  become: yes
+  
+  tasks:
+    - name: Install Node.js
+      apt:
+        name:
+          - nodejs
+          - npm
+        state: present
+
+    - name: Create app directory
+      file:
+        path: /opt/book-bazaar
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+# Node Exporter Setup on All Servers
+- name: Setup Node Exporter on All Servers
+  hosts: all_servers
+  become: yes
+  
+  tasks:
+    - name: Create node_exporter user
+      user:
+        name: node_exporter
+        system: yes
+        shell: /bin/false
+
+    - name: Download Node Exporter
+      get_url:
+        url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+        dest: /tmp/node_exporter.tar.gz
+
+    - name: Extract Node Exporter
+      unarchive:
+        src: /tmp/node_exporter.tar.gz
+        dest: /tmp
+        remote_src: yes
+
+    - name: Copy Node Exporter binary
+      copy:
+        src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+        dest: /usr/local/bin/node_exporter
+        owner: node_exporter
+        group: node_exporter
+        mode: '0755'
+        remote_src: yes
+
+    - name: Create Node Exporter systemd service
+      template:
+        src: node_exporter.service.j2
+        dest: /etc/systemd/system/node_exporter.service
+        mode: '0644'
+
+    - name: Start and enable Node Exporter
+      systemd:
+        name: node_exporter
+        state: started
+        enabled: yes
+        daemon_reload: yes

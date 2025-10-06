@@ -1,8 +1,20 @@
 # 🚀 Complete DevOps Setup Guide - Jenkins, Prometheus & Grafana
 
-This guide will walk you through setting up a complete CI/CD pipeline with mon4. **Add these variables**:
-   - Name: `APP_SERVER_IP`, Value: `43.205.253.129`
-   - Name: `SSH_KEY_PATH`, Value: `/var/lib/jenkins/team-key-mumbai.pem`ring for the Online Book Bazaar project. Perfect for demonstrations and learning!
+## 🎉 **STATUS: FULLY OPERATIONAL** ✅
+
+**Your DevOps pipeline is now completely automated and working!**
+
+### 🌐 **Live URLs:**
+- 🚀 **Application**: http://43.205.253.129:8000
+- 📊 **Monitoring**: http://13.232.74.85:3000
+- 🏗️ **CI/CD**: http://13.232.244.171:8080
+
+### ✅ **Automated Workflow Active:**
+GitHub → Jenkins → Build → Test → Deploy → Monitor
+
+---
+
+This guide documents the setup process for the Online Book Bazaar DevOps pipeline. Perfect for demonstrations and learning!
 
 ## 📋 Prerequisites
 
@@ -245,8 +257,12 @@ pipeline {
 
 ### Step 4: Create Custom Dashboard for Book Bazaar
 
-1. **Click "+" → Dashboard**
-2. **Click "Add new panel"**
+1. **✅ Import Complete!** You now have both Node Exporter dashboards imported
+2. **Click on "Node Exporter Full"** to view your system metrics
+3. **Create a custom Book Bazaar dashboard:**
+   - Click "New dashboard" button (top right)
+   - Click "Add visualization"
+   - Select "Prometheus" as data source
 
    **Panel 1 - System Overview**:
    - Title: `Server Health Overview`
@@ -282,14 +298,38 @@ pipeline {
 
 ### Step 5: Create Application Monitoring Dashboard
 
-1. **Create new dashboard**: "+" → Dashboard
-2. **Add panels for**:
-   - **HTTP Response Time**
-   - **Application Uptime**
-   - **Resource Usage**
-   - **Error Rates**
+1. **Close this panel library dialog** - Click the "X" in the top right corner
+2. **Create new dashboard**: Click "New dashboard" button (top right)
+3. **Click "Add visualization"** (blue button in center)
+4. **Select "Prometheus"** as data source
 
-3. **Save as**: `Book Bazaar Application Dashboard`
+**Add these panels one by one:**
+
+#### **Panel 1: Service Status**
+- **Query**: `up`
+- **Title**: "Book Bazaar Services Status"
+- **Visualization**: Stat
+- **Click "Apply"** to save
+
+#### **Panel 2: System Resources**
+- **Query**: `100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)`
+- **Title**: "CPU Usage %"
+- **Visualization**: Time series
+- **Click "Apply"** to save
+
+#### **Panel 3: Memory Usage**
+- **Query**: `(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100`
+- **Title**: "Memory Usage %"
+- **Visualization**: Gauge
+- **Click "Apply"** to save
+
+#### **Panel 4: Disk Usage**
+- **Query**: `100 - (node_filesystem_avail_bytes{device="/dev/root"} / node_filesystem_size_bytes{device="/dev/root"} * 100)`
+- **Title**: "Disk Usage %"
+- **Visualization**: Gauge
+- **Click "Apply"** to save
+
+5. **Save dashboard**: Click save icon 💾, name it `Book Bazaar Application Dashboard`
 
 ---
 

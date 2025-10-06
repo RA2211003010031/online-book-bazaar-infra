@@ -1,0 +1,23 @@
+[Unit]
+Description=Prometheus Server
+Documentation=https://prometheus.io/docs/
+After=network.target
+
+[Service]
+User=prometheus
+Group=prometheus
+Type=simple
+Restart=always
+RestartSec=5
+ExecStart=/usr/local/bin/prometheus \
+  --config.file=/etc/prometheus/prometheus.yml \
+  --storage.tsdb.path=/var/lib/prometheus/ \
+  --web.console.templates=/etc/prometheus/consoles \
+  --web.console.libraries=/etc/prometheus/console_libraries \
+  --web.listen-address=0.0.0.0:9090 \
+  --web.external-url=http://13.232.74.85:9090 \
+  --storage.tsdb.retention.time=30d \
+  --storage.tsdb.retention.size=10GB
+
+[Install]
+WantedBy=multi-user.target

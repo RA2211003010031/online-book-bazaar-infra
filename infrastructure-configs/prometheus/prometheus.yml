@@ -1,0 +1,71 @@
+# Prometheus Configuration for Online Book Bazaar Monitoring
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Rules files
+rule_files:
+  - "alert_rules.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # Jenkins Server Monitoring
+  - job_name: 'jenkins-server'
+    static_configs:
+      - targets: ['13.232.244.171:9100']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    labels:
+      service: 'jenkins'
+      environment: 'production'
+
+  # Application Server Monitoring
+  - job_name: 'app-server'
+    static_configs:
+      - targets: ['43.205.253.129:9100']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    labels:
+      service: 'book-bazaar-app'
+      environment: 'production'
+
+  # Monitoring Server (self-monitoring)
+  - job_name: 'monitoring-server'
+    static_configs:
+      - targets: ['localhost:9100']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    labels:
+      service: 'monitoring'
+      environment: 'production'
+
+  # Application-specific metrics (if app exposes metrics)
+  - job_name: 'book-bazaar-app'
+    static_configs:
+      - targets: ['43.205.253.129:8000']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+    labels:
+      service: 'book-bazaar'
+      environment: 'production'
+
+# Alerting configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093
+
+# Storage configuration
+storage:
+  tsdb:
+    retention.time: 30d
+    retention.size: 10GB

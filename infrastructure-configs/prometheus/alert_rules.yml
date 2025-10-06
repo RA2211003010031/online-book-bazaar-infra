@@ -1,0 +1,65 @@
+# Alert Rules for Online Book Bazaar Infrastructure
+groups:
+  - name: infrastructure_alerts
+    rules:
+      # High CPU Usage Alert
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is above 80% for instance {{ $labels.instance }}"
+
+      # High Memory Usage Alert
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is above 85% for instance {{ $labels.instance }}"
+
+      # Low Disk Space Alert
+      - alert: LowDiskSpace
+        expr: (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})) * 100 > 85
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low disk space detected"
+          description: "Disk usage is above 85% for instance {{ $labels.instance }} on filesystem {{ $labels.mountpoint }}"
+
+      # Service Down Alert
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service is down"
+          description: "Service {{ $labels.job }} on instance {{ $labels.instance }} is down"
+
+  - name: application_alerts
+    rules:
+      # Application Response Time Alert
+      - alert: HighResponseTime
+        expr: http_request_duration_seconds{quantile="0.95"} > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is above 2 seconds"
+
+      # Application Error Rate Alert
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is above 10% for the last 5 minutes"
