@@ -1,20 +1,22 @@
 # 🚀 Complete DevOps Setup Guide - Jenkins, Prometheus & Grafana
 
-This guide will walk you through setting up a complete CI/CD pipeline with monitoring for the Online Book Bazaar project. Perfect for demonstrations and learning!
+This guide will walk you through setting up a complete CI/CD pipeline with mon4. **Add these variables**:
+   - Name: `APP_SERVER_IP`, Value: `43.205.253.129`
+   - Name: `SSH_KEY_PATH`, Value: `/var/lib/jenkins/team-key-mumbai.pem`ring for the Online Book Bazaar project. Perfect for demonstrations and learning!
 
 ## 📋 Prerequisites
 
 Your infrastructure is already running:
-- ✅ Jenkins: http://13.232.108.169:8080
-- ✅ Prometheus: http://3.111.215.37:9090  
-- ✅ Grafana: http://3.111.215.37:3000
-- ✅ Book Bazaar App: http://13.201.70.160:8000
+- ✅ Jenkins: http://13.232.244.171:8080
+- ✅ Prometheus: http://13.232.74.85:9090  
+- ✅ Grafana: http://13.232.74.85:3000
+- ✅ Book Bazaar App: http://43.205.253.129:8000
 
 ## 🔧 Part 1: Jenkins CI/CD Setup (30 minutes)
 
 ### Step 1: Initial Jenkins Setup
 
-1. **Open Jenkins** in your browser: http://13.232.108.169:8080
+1. **Open Jenkins** in your browser: http://13.232.244.171:8080
 2. **Enter the initial admin password**: `a0340b1e83154c7c8b120fde5858dc95`
 3. **Choose "Install suggested plugins"** - this will take 5-10 minutes
 4. **Create your admin user**:
@@ -146,12 +148,10 @@ pipeline {
    - Name: `APP_SERVER_IP`, Value: `13.201.70.160`
    - Name: `SSH_KEY_PATH`, Value: `/var/jenkins_home/team-key-mumbai.pem`
 
-5. **Copy SSH key to Jenkins**:
-   - Run this command on your local machine:
-   ```bash
-   scp -i team-key-mumbai.pem team-key-mumbai.pem ubuntu@13.232.108.169:/tmp/
-   ssh -i team-key-mumbai.pem ubuntu@13.232.108.169 "sudo cp /tmp/team-key-mumbai.pem /var/lib/jenkins/ && sudo chown jenkins:jenkins /var/lib/jenkins/team-key-mumbai.pem && sudo chmod 600 /var/lib/jenkins/team-key-mumbai.pem"
-   ```
+5. **SSH Key Setup**: ✅ **Already completed automatically during upgrade!**
+   - SSH key is properly configured at `/var/lib/jenkins/team-key-mumbai.pem`
+   - Correct permissions and ownership set
+   - Ready for CI/CD deployment
 
 ### Step 5: Run Your First Pipeline
 
@@ -159,7 +159,7 @@ pipeline {
 2. **Click "Build Now"**
 3. **Watch the build progress** (5-10 minutes)
 4. **Click on build number** to see console output
-5. **Verify deployment** by visiting http://13.201.70.160:8000
+5. **Verify deployment** by visiting http://43.205.253.129:8000
 
 ---
 
@@ -167,7 +167,7 @@ pipeline {
 
 ### Step 1: Access Prometheus
 
-1. **Open Prometheus**: http://3.111.215.37:9090
+1. **Open Prometheus**: http://13.232.74.85:9090
 2. **Click "Status" → "Targets"** 
 3. **Verify these targets are UP**:
    - prometheus (localhost:9090)
@@ -208,7 +208,7 @@ pipeline {
 
 ### Step 1: Initial Grafana Setup
 
-1. **Open Grafana**: http://3.111.215.37:3000
+1. **Open Grafana**: http://13.232.74.85:3000
 2. **Login**:
    - Username: `admin`
    - Password: `admin123`
@@ -306,7 +306,7 @@ pipeline {
 
 **For your professor demonstration**:
 
-1. **Show the running application**: http://13.201.70.160:8000
+1. **Show the running application**: http://43.205.253.129:8000
 2. **Demonstrate CI/CD**:
    - Show Jenkins pipeline
    - Trigger a build
