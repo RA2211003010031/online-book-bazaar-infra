@@ -1,6 +1,16 @@
-# Online Book Bazaar - DevOps Deployment Summary
+# Online Book Bazaar - DevOps Deployment Su### 🚀 Quick Commands
 
-## 🎯 Project Status: **COMPLETE** ✅
+### Status Check
+```bash
+./check-status.sh
+```
+
+### Fix Prometheus Monitoring
+```bash
+./fix-prometheus.sh
+```
+
+### SSH Access# 🎯 Project Status: **COMPLETE** ✅
 
 All services are successfully deployed and accessible!
 
@@ -70,9 +80,10 @@ ssh -i team-key-mumbai.pem ubuntu@3.111.215.37
 - [x] Infrastructure provisioned via Terraform Cloud
 - [x] Book Bazaar application deployed in Docker
 - [x] Jenkins CI/CD server configured and running
-- [x] Prometheus metrics collection active
+- [x] Prometheus metrics collection active with healthy targets
 - [x] Grafana dashboards accessible
 - [x] All services health-checked and verified
+- [x] Monitoring configuration optimized (host networking)
 - [x] Repository cleaned and GitHub-ready
 
 ## 🔧 Next Steps (Optional)
