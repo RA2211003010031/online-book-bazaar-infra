@@ -7,7 +7,7 @@
 set -e
 
 # Configuration
-GITHUB_REPO="https://github.com/adarsh-raj27/online-book-bazaar.git"
+GITHUB_REPO="https://github.com/RA2211003010031/website-book-store.git"
 JENKINS_PORT=8080
 PROMETHEUS_PORT=9090
 GRAFANA_PORT=3000
@@ -120,11 +120,11 @@ install_docker() {
     
     run_remote $ip "
         sudo apt-get update
-        sudo apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release
+        DEBIAN_FRONTEND=noninteractive sudo apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release
         curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
         echo \"deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \$(lsb_release -cs) stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
         sudo apt-get update
-        sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+        DEBIAN_FRONTEND=noninteractive sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
         sudo usermod -aG docker ubuntu
         sudo systemctl start docker
         sudo systemctl enable docker
@@ -140,7 +140,7 @@ install_java17() {
     
     run_remote $ip "
         sudo apt-get update
-        sudo apt-get install -y openjdk-17-jdk
+        DEBIAN_FRONTEND=noninteractive sudo apt-get install -y openjdk-17-jdk
         java -version
     "
     
@@ -156,10 +156,37 @@ install_jenkins() {
     install_java17 $ip
     
     run_remote $ip "
-        wget -q -O - https://pkg.jenkins.io/debian-stable/jenkins.io.key | sudo apt-key add -
-        sudo sh -c 'echo deb https://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list'
+        # Completely purge any existing Jenkins installation
+        sudo systemctl stop jenkins 2>/dev/null || true
+        sudo systemctl disable jenkins 2>/dev/null || true
+        DEBIAN_FRONTEND=noninteractive sudo apt-get purge -y jenkins 2>/dev/null || true
+        sudo rm -rf /var/lib/jenkins
+        sudo rm -rf /etc/default/jenkins
+        sudo rm -rf /etc/init.d/jenkins
+        sudo rm -rf /etc/systemd/system/jenkins.service
+        sudo systemctl daemon-reload
+        
+        # Remove any existing Jenkins repository configuration
+        sudo rm -f /etc/apt/sources.list.d/jenkins.list
+        sudo rm -f /usr/share/keyrings/jenkins-keyring.asc
+        
+        # Add Jenkins repository with the new GPG key method
+        curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | sudo tee /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+        echo \"deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/\" | sudo tee /etc/apt/sources.list.d/jenkins.list > /dev/null
         sudo apt-get update
-        sudo apt-get install -y jenkins
+        
+        # Install Jenkins completely non-interactively with automatic answers
+        echo 'Y' | DEBIAN_FRONTEND=noninteractive sudo apt-get install -y -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" jenkins || {
+            # If that fails, try with expect to handle prompts
+            sudo apt-get install -y expect
+            expect << 'EXPECTEOF'
+spawn sudo apt-get install -y jenkins
+expect {
+    \"*** jenkins*\" { send \"Y\\r\"; exp_continue }
+    eof
+}
+EXPECTEOF
+        }
         
         # Configure Jenkins to use Java 17
         sudo systemctl stop jenkins || true
@@ -191,14 +218,59 @@ setup_book_bazaar() {
     log "Setting up Book Bazaar application on $ip..."
     
     run_remote $ip "
+        # Install Node.js first
+        curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+        DEBIAN_FRONTEND=noninteractive sudo apt-get install -y nodejs
+        
         # Clone the repository
-        if [ -d 'online-book-bazaar' ]; then
-            rm -rf online-book-bazaar
+        if [ -d 'website-book-store' ]; then
+            rm -rf website-book-store
         fi
         git clone $GITHUB_REPO
-        cd online-book-bazaar
+        cd website-book-store
         
-        # Create Dockerfile if it doesn't exist
+        # Initialize package.json if it doesn't exist
+        if [ ! -f package.json ]; then
+            npm init -y
+        fi
+        
+        # Install express and other dependencies
+        npm install express --save
+        
+        # Create a simple server.js for the static files with status endpoint
+        cat > server.js << 'SERVEREOF'
+const express = require('express');
+const path = require('path');
+const app = express();
+const PORT = 3000;
+
+// Serve static files
+app.use(express.static('.'));
+
+// Status endpoint
+app.get('/status', (req, res) => {
+    res.json({ 
+        status: 'OK', 
+        timestamp: new Date().toISOString(), 
+        service: 'book-bazaar',
+        version: '1.0.0'
+    });
+});
+
+// Serve index.html for root path
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(\`Book Bazaar running on port \${PORT}\`);
+});
+SERVEREOF
+        
+        # Update start script in package.json
+        npm pkg set scripts.start=\"node server.js\"
+        
+        # Create Dockerfile for the static website
         cat > Dockerfile << 'EOF'
 FROM node:16-alpine
 
@@ -214,10 +286,7 @@ RUN npm install
 COPY . .
 
 # Expose the port
-EXPOSE 8000
-
-# Add status endpoint
-RUN echo 'app.get(\"/status\", (req, res) => { res.json({ status: \"OK\", timestamp: new Date().toISOString(), service: \"book-bazaar\" }); });' >> server.js
+EXPOSE 3000
 
 # Start the application
 CMD [\"npm\", \"start\"]
@@ -227,16 +296,19 @@ EOF
         sudo docker build -t book-bazaar .
         sudo docker stop book-bazaar-app 2>/dev/null || true
         sudo docker rm book-bazaar-app 2>/dev/null || true
-        sudo docker run -d --name book-bazaar-app -p $APP_PORT:8000 book-bazaar
+        sudo docker run -d --name book-bazaar-app -p $APP_PORT:3000 book-bazaar
         
         # Wait for app to start
-        sleep 10
+        sleep 15
         
         # Check if app is running
         if curl -f http://localhost:$APP_PORT/status 2>/dev/null; then
             echo 'Book Bazaar application is running successfully!'
+        elif curl -f http://localhost:$APP_PORT 2>/dev/null; then
+            echo 'Book Bazaar application is running (main page accessible)!'
         else
-            echo 'Book Bazaar application status check failed, but container might still be starting...'
+            echo 'Book Bazaar application status check failed, checking container logs...'
+            sudo docker logs book-bazaar-app
         fi
     "
     
@@ -365,7 +437,9 @@ validate_setup() {
     case $service_name in
         "app")
             if curl -f http://$ip:$APP_PORT/status 2>/dev/null; then
-                log "✅ Book Bazaar app is accessible on $ip:$APP_PORT"
+                log "✅ Book Bazaar app is accessible on $ip:$APP_PORT (status endpoint)"
+            elif curl -f http://$ip:$APP_PORT 2>/dev/null; then
+                log "✅ Book Bazaar app is accessible on $ip:$APP_PORT (main page)"
             else
                 warn "❌ Book Bazaar app is not accessible on $ip:$APP_PORT"
             fi

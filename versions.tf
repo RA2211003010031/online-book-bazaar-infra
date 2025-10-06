@@ -2,7 +2,7 @@ terraform {
   cloud {
     organization = "online-book-bazaar"
     workspaces {
-      name = "book-bazaar-infrastructure"
+      name = "online-book-bazaar-infra"
     }
   }
   
